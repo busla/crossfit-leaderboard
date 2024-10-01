@@ -1,38 +1,23 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Container,
-  Paper,
-  Typography,
   Box,
   Tabs,
   Tab,
-  Skeleton,
+  Paper,
+  Alert,
 } from "@mui/material";
-import { DataGrid, GridColDef, GridValidRowModel } from "@mui/x-data-grid";
-import { styled } from "@mui/material/styles";
-import LoadingSpinner from "./spinner";
+import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import Image from 'next/image';
+import { Footer, FooterText, HeaderTypography, LastUpdatedTypography } from "./styled"
 
 const REFRESH_INTERVAL = 10000; // 10 seconds
-
-const AnimatedDataGrid = styled(DataGrid)`
-  .MuiDataGrid-row {
-    transition: background-color 2s ease-in-out;
-  }
-  .row-updated {
-    background-color: rgba(255, 215, 0, 0.5);
-  }
-`;
 
 interface SheetData {
   headers: string[];
   data: any[];
-}
-
-interface RowData extends GridValidRowModel {
-  id: string;
-  [key: string]: any;
 }
 
 interface LeaderboardClientProps {
@@ -41,159 +26,134 @@ interface LeaderboardClientProps {
   initialTimestamp: string;
 }
 
-function LeaderboardClient({
+
+const LeaderboardClient = ({
   initialData,
   initialCategories,
   initialTimestamp,
-}: LeaderboardClientProps) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [allData, setAllData] =
-    useState<Record<string, SheetData>>(initialData);
+}: LeaderboardClientProps) => {
+  const [allData, setAllData] = useState<Record<string, SheetData>>(initialData);
   const [categories, setCategories] = useState<string[]>(initialCategories);
   const [category, setCategory] = useState<string>(initialCategories[0] || "");
-  const [divisions, setDivisions] = useState<string[]>([]);
   const [division, setDivision] = useState<string>("");
   const [lastUpdated, setLastUpdated] = useState<string>(initialTimestamp);
-  const [rows, setRows] = useState<RowData[]>([]);
-  const [updatedRows, setUpdatedRows] = useState<Set<string>>(new Set());
+  const [rows, setRows] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (allData && categories.length > 0) {
-      setIsLoading(false);
-    }
-  }, [allData, categories]);
-
-  const columns = useMemo(() => {
+  const formatLastUpdated = (timestamp: string) => {
+    return new Date(timestamp).toLocaleString('is-IS', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+      timeZone: 'Atlantic/Reykjavik'
+    });
+  };
+  const updateRowsData = useCallback(() => {
     if (category && allData[category]) {
-      const { headers } = allData[category];
-      return [
-        { field: "rank", headerName: "Rank", width: 70 },
-        ...headers.map((header: string) => ({
-          field: header,
-          headerName: header,
-          flex: 1,
-          minWidth: 150,
-        })),
-      ];
-    }
-    return [];
-  }, [category, allData]);
+      const { data } = allData[category];
+      let filteredRows = division
+        ? data.filter((row) => row["Division"] === division)
+        : data;
 
-  useEffect(() => {
-    if (category && allData[category] && division) {
-      const { data, headers } = allData[category];
-      const lastColumnName = headers[headers.length - 1];
+      // Sort rows based on the "Total" field
+      filteredRows.sort((a, b) => parseFloat(b["Total"]) - parseFloat(a["Total"]));
 
-      let newRows = data
-        .filter((row) => row["Division"] === division)
-        .map((row) => ({
-          ...row,
-          id: row["Athlete"],
-          [lastColumnName]: Number(row[lastColumnName]),
-        }));
-
-      const updatedIds = new Set<string>();
-
-      newRows = newRows.map((newRow) => {
-        const oldRow = rows.find((r) => r.id === newRow.id);
-        if (oldRow && oldRow[lastColumnName] !== newRow[lastColumnName]) {
-          updatedIds.add(newRow.id);
-          return { ...newRow };
-        }
-        return newRow;
-      });
-
-      newRows.sort((a, b) => b[lastColumnName] - a[lastColumnName]);
-
-      newRows = newRows.map((row, index) => ({
+      // Assign ranks after sorting
+      filteredRows = filteredRows.map((row, index) => ({
         ...row,
         rank: index + 1,
       }));
 
-      if (JSON.stringify(newRows) !== JSON.stringify(rows)) {
-        setRows(newRows);
-        setUpdatedRows(updatedIds);
-
-        // Clear the updated row set after 5 seconds to allow retriggering
-        setTimeout(() => {
-          setUpdatedRows(new Set());
-        }, 5000);
-      }
+      setRows(filteredRows);
     }
-  }, [category, division, allData, rows]);
+  }, [category, division, allData]);
 
   useEffect(() => {
-    if (category && allData[category]) {
-      const { data } = allData[category];
-      const uniqueDivisions = Array.from(
-        new Set(data.map((row: any) => row["Division"])),
-      );
-      setDivisions(uniqueDivisions);
-      if (!division || !uniqueDivisions.includes(division)) {
-        setDivision(uniqueDivisions[0] || "");
-      }
-    }
-  }, [category, allData, division]);
+    updateRowsData();
+  }, [updateRowsData]);
 
-  const handleCategoryChange = (
-    _event: React.SyntheticEvent,
-    newValue: string,
-  ) => {
-    setCategory(newValue);
-  };
-
-  const handleDivisionChange = (
-    _event: React.SyntheticEvent,
-    newValue: string,
-  ) => {
-    setDivision(newValue);
-  };
-
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     try {
+      setError(null);
       const timestamp = new Date().getTime();
       const res = await fetch(`/api/leaderboard?timestamp=${timestamp}`);
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
       const { allData: newData, categories: newCategories } = await res.json();
       setAllData(newData);
       setCategories(newCategories);
       setLastUpdated(new Date().toISOString());
     } catch (error) {
       console.error("Error refreshing data: ", error);
+      setError(`Failed to fetch data: ${error instanceof Error ? error.message : String(error)}`);
     }
-  };
-
-  useEffect(() => {
-    const intervalId = setInterval(refreshData, REFRESH_INTERVAL);
-    return () => clearInterval(intervalId);
   }, []);
 
-  const getRowClassName = (params: GridValidRowModel) => {
-    return updatedRows.has(params.id as string) ? "row-updated" : "";
-  };
+  useEffect(() => {
+    refreshData(); // Initial data fetch
+    const intervalId = setInterval(refreshData, REFRESH_INTERVAL);
+    return () => clearInterval(intervalId);
+  }, [refreshData]);
 
-  const getRowId = (row: GridValidRowModel): string => {
-    return row.id as string;
-  };
+  const handleCategoryChange = useCallback((_event: React.SyntheticEvent, newValue: string) => {
+    setCategory(newValue);
+    setDivision("");
+  }, []);
 
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
+  const handleDivisionChange = useCallback((_event: React.SyntheticEvent, newValue: string) => {
+    setDivision(newValue);
+  }, []);
+
+  const columns: GridColDef[] = React.useMemo(() => {
+    if (category && allData[category]) {
+      return [
+        { field: "rank", headerName: "Rank", width: 70 },
+        ...allData[category].headers.map((header) => {
+          if (header === "Athlete") {
+            return {
+              field: header,
+              headerName: header,
+              flex: 1,
+              minWidth: 250,
+            };
+          }
+          return {
+            field: header,
+            headerName: header,
+            flex: 1,
+            minWidth: 50,
+          };
+        }),
+      ];
+    }
+    return [];
+  }, [category, allData]);
+
+  const uniqueDivisions = React.useMemo(() => {
+    if (category && allData[category]) {
+      const divisions = allData[category].data.map((row) => row["Division"]);
+      return Array.from(new Set(divisions));
+    }
+    return [];
+  }, [category, allData]);
 
   return (
     <Container maxWidth="lg">
       <Box sx={{ my: 4 }}>
-        <Typography
-          variant="h3"
-          component="h1"
-          gutterBottom
-          align="center"
-          color="secondary"
-        >
-          CrossFit Competition Results
-        </Typography>
-        <Typography variant="body2">
-          Last updated: {new Date(lastUpdated).toLocaleString()}
-        </Typography>
+        <HeaderTypography variant="h4" component="h1" align="center">
+          Íslandsmótið í Crossfit 2024 <span>(undankeppni)</span>
+        </HeaderTypography>
+
+        <Box display="flex" justifyContent="center" width="100%" mb={2}>
+          <LastUpdatedTypography >
+            Síðast uppfært: {formatLastUpdated(lastUpdated)}
+          </LastUpdatedTypography>
+        </Box>
+        {error && (
+          <Alert severity="error" sx={{ my: 2 }}>
+            {error}
+          </Alert>
+        )}
         <Tabs
           value={category}
           onChange={handleCategoryChange}
@@ -204,37 +164,40 @@ function LeaderboardClient({
             <Tab key={cat} label={cat} value={cat} />
           ))}
         </Tabs>
-        {divisions.length > 0 && (
+        {uniqueDivisions.length > 0 && (
           <Tabs value={division} onChange={handleDivisionChange} centered>
-            {divisions.map((div) => (
+            <Tab key="all" label="All" value="" />
+            {uniqueDivisions.map((div) => (
               <Tab key={div} label={div} value={div} />
             ))}
           </Tabs>
         )}
         <Paper elevation={3}>
-          <AnimatedDataGrid
+          <DataGrid
             rows={rows}
             columns={columns}
             autoHeight
-            getRowId={getRowId}
-            getRowClassName={getRowClassName}
+            getRowId={(row) => row.id}
             initialState={{
-              pagination: {
-                paginationModel: { pageSize: 10, page: 0 },
-              },
-              sorting: {
-                sortModel: [
-                  {
-                    field: columns[columns.length - 1]?.field || "",
-                    sort: "desc",
-                  },
-                ],
-              },
+              pagination: { paginationModel: { pageSize: 50, page: 0 } },
+              sorting: { sortModel: [{ field: "Total", sort: "desc" }] },
             }}
-            pageSizeOptions={[10, 25, 50]}
+            pageSizeOptions={[10, 25, 50, 100]}
             disableRowSelectionOnClick
           />
         </Paper>
+        <Footer>
+          <FooterText variant="body1">
+            Í boði
+          </FooterText>
+          <Image
+            src="/images/cfr420.png"
+            alt="Logo"
+            width={420}
+            height={420}
+            style={{ width: 'auto', height: '80px' }}
+          />
+        </Footer>
       </Box>
     </Container>
   );
