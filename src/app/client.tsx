@@ -26,6 +26,23 @@ interface LeaderboardClientProps {
   initialTimestamp: string;
 }
 
+const formatLastUpdated = (timestamp: string) => {
+  return new Date(timestamp).toLocaleString('is-IS', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+    timeZone: 'Atlantic/Reykjavik'
+  });
+};
+
+const headerTranslations: { [key: string]: string } = {
+  "Division": "Undirflokkur",
+  "Athlete": "Keppandi",
+  "Total": "Heildarstig",
+  "Rank": "Sæti",
+  "All": "Allir",
+  "Men": "Karlar",
+  "Women": "Konur",
+};
 
 const LeaderboardClient = ({
   initialData,
@@ -40,13 +57,6 @@ const LeaderboardClient = ({
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const formatLastUpdated = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString('is-IS', {
-      dateStyle: 'short',
-      timeStyle: 'short',
-      timeZone: 'Atlantic/Reykjavik'
-    });
-  };
   const updateRowsData = useCallback(() => {
     if (category && allData[category]) {
       const { data } = allData[category];
@@ -107,19 +117,19 @@ const LeaderboardClient = ({
   const columns: GridColDef[] = React.useMemo(() => {
     if (category && allData[category]) {
       return [
-        { field: "rank", headerName: "Rank", width: 70 },
+        { field: "rank", headerName: headerTranslations["Rank"] || "Rank", width: 70 },
         ...allData[category].headers.map((header) => {
           if (header === "Athlete") {
             return {
               field: header,
-              headerName: header,
+              headerName: headerTranslations[header] || header,
               flex: 1,
               minWidth: 250,
             };
           }
           return {
             field: header,
-            headerName: header,
+            headerName: headerTranslations[header] || header,
             flex: 1,
             minWidth: 50,
           };
@@ -157,8 +167,7 @@ const LeaderboardClient = ({
         <Tabs
           value={category}
           onChange={handleCategoryChange}
-          variant="scrollable"
-          scrollButtons="auto"
+          centered
         >
           {categories.map((cat) => (
             <Tab key={cat} label={cat} value={cat} />
@@ -166,7 +175,7 @@ const LeaderboardClient = ({
         </Tabs>
         {uniqueDivisions.length > 0 && (
           <Tabs value={division} onChange={handleDivisionChange} centered>
-            <Tab key="all" label="All" value="" />
+            <Tab key="all" label="Allir" value="" />
             {uniqueDivisions.map((div) => (
               <Tab key={div} label={div} value={div} />
             ))}

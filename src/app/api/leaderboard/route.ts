@@ -52,9 +52,7 @@ export async function GET(request: NextRequest) {
       { allData: allSheetData, categories: sheetNames },
       {
         headers: {
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
+          "Cache-Control": "public, max-age=0, s-maxage=60, stale-while-revalidate=300",
         },
       },
     );

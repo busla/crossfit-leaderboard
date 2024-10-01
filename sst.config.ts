@@ -27,6 +27,9 @@ export default $config({
           zone: "Z0516150OQ0TIC6MDCUG",
         }),
       },
+      assets: {
+        nonVersionedFilesCacheHeader: "public,max-age=0,s-maxage=10,stale-while-revalidate=300"
+      }
     });
   },
 });
