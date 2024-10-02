@@ -35,13 +35,15 @@ export async function GET(request: NextRequest) {
 
       if (values.length > 0) {
         const headers = values[0];
-        const data = values.slice(1).map((row: any[], index: number) => {
-          const rowData: Record<string, any> = { id: index + 1 };
-          headers.forEach((header: string, colIndex: number) => {
-            rowData[header] = row[colIndex] || "";
+        const data = values.slice(1)
+          .filter((row: any[]) => row.every((cell: any) => cell !== ''))
+          .map((row: any[], index: number) => {
+            const rowData: Record<string, any> = { id: index + 1 };
+            headers.forEach((header: string, colIndex: number) => {
+              rowData[header] = row[colIndex];
+            });
+            return rowData;
           });
-          return rowData;
-        });
         allSheetData[sheetName] = { headers, data };
       }
     }
@@ -50,9 +52,7 @@ export async function GET(request: NextRequest) {
       { allData: allSheetData, categories: sheetNames },
       {
         headers: {
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
+          "Cache-Control": "public, max-age=0, s-maxage=60, stale-while-revalidate=300",
         },
       },
     );

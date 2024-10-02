@@ -5,6 +5,9 @@ const theme = createTheme({
     secondary: {
       main: "#FF0000", // Red
     },
+    custom: {
+      softYellow: "#FFF9C4", // Soft yellow color
+    },
   },
   components: {
     MuiTabs: {
