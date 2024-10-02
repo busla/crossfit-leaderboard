@@ -20,18 +20,24 @@ export const HeaderTypography = styled(Typography)<TypographyProps>(({ theme }) 
   }
 }));
 
+interface FooterTextProps {
+  fontSize?: string;
+}
+
 export const Footer = styled(Box)(({ theme }) => ({
   display: 'flex',
-  justifyContent: 'center',
+  justifyContent: 'space-between', // Ensures left and right sections are spread apart
   alignItems: 'center',
   marginTop: theme.spacing(4),
   marginBottom: theme.spacing(2),
-  gap: theme.spacing(2), // Space between children
+  padding: theme.spacing(2), // Optional: some padding for better spacing
+  gap: theme.spacing(2), // Space between children within each section
+  width: '100%', // Ensures the Footer takes full width
 }));
 
-export const FooterText = styled(Typography)(({ theme }) => ({
-  fontSize: '3rem', // Adjust as needed
-  fontWeight: 500, // Medium weight
+export const FooterText = styled(Typography)<FooterTextProps>(({ theme, fontSize }) => ({
+  fontSize: fontSize || '1rem',
+  fontWeight: 500,
 }));
 
 export const LastUpdatedTypography = styled(Typography)(({ theme }) => ({

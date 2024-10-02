@@ -7,6 +7,7 @@ const theme = createTheme({
     },
     custom: {
       softYellow: "#FFF9C4", // Soft yellow color
+      footerRight: "1rm"
     },
   },
   components: {

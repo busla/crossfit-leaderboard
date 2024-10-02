@@ -64,8 +64,8 @@ const LeaderboardClient = ({
         ? data.filter((row) => row["Division"] === division)
         : data;
 
-      // Sort rows based on the "Total" field
-      filteredRows.sort((a, b) => parseFloat(b["Total"]) - parseFloat(a["Total"]));
+      // Sort rows based on the "Total" field, lower scores first
+      filteredRows.sort((a, b) => parseFloat(a["Total"]) - parseFloat(b["Total"]));
 
       // Assign ranks after sorting
       filteredRows = filteredRows.map((row, index) => ({
@@ -188,27 +188,46 @@ const LeaderboardClient = ({
             autoHeight
             getRowId={(row) => row.id}
             initialState={{
-              pagination: { paginationModel: { pageSize: 50, page: 0 } },
-              sorting: { sortModel: [{ field: "Total", sort: "desc" }] },
+              pagination: { paginationModel: { pageSize: 100, page: 0 } },
+              sorting: { sortModel: [{ field: "rank", sort: "asc" }] },
             }}
             pageSizeOptions={[10, 25, 50, 100]}
             disableRowSelectionOnClick
           />
         </Paper>
         <Footer>
-          <FooterText variant="body1">
-            Í boði
-          </FooterText>
-          <Image
-            src="/images/cfr420.png"
-            alt="Logo"
-            width={420}
-            height={420}
-            style={{ width: 'auto', height: '80px' }}
-          />
+          <Box display="flex" alignItems="center" gap={2}>
+            <FooterText variant="body1" fontSize='3rem'>
+              Í boði
+            </FooterText>
+
+            <a href="https://crossfitreykjavik.is" target="_blank" rel="noopener noreferrer">
+              <Image
+                src="/images/cfr420.png"
+                alt="Logo"
+                width={420}
+                height={420}
+                style={{ width: 'auto', height: '80px' }}
+              />
+            </a>
+          </Box>
+          <Box display="flex" alignItems="center" gap={2}>
+            <FooterText variant="body1" fontSize='1rem'>
+              Með aðstoð
+            </FooterText>
+            <a href="https://fairgame.is" target="_blank" rel="noopener noreferrer">
+              <Image
+                src="/images/fairgame.svg"
+                alt="FairGame Sports"
+                width={100}
+                height={30}
+                style={{ width: 'auto', height: '60px' }}
+              />
+            </a>
+          </Box>
         </Footer>
       </Box>
-    </Container>
+    </Container >
   );
 }
 

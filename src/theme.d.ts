@@ -13,11 +13,13 @@ declare module "@mui/material/styles" {
   interface Palette {
     custom: {
       softYellow: string;
+      footerRight: string;
     };
   }
   interface PaletteOptions {
     custom?: {
       softYellow?: string;
+      footerRight?: string;
     };
   }
 }
