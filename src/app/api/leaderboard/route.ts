@@ -22,8 +22,23 @@ export async function GET(request: NextRequest) {
     const sheetUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?fields=sheets.properties.title&key=${API_KEY}`;
     const sheetResponse = await fetchWithNoCache(sheetUrl);
     const sheetData = await sheetResponse.json();
+
+    // Ensure 'sheets' exists and is an array
+    if (!sheetData.sheets || !Array.isArray(sheetData.sheets)) {
+      console.error("Sheets data is missing or not an array");
+      return NextResponse.json(
+        { allData: {}, categories: [] },
+        {
+          headers: {
+            "Cache-Control": "public, max-age=0, s-maxage=10, stale-while-revalidate=30",
+          },
+          status: 200,
+        },
+      );
+    }
+
     const sheetNames = sheetData.sheets.map(
-      (sheet: any) => sheet.properties.title,
+      (sheet: any) => sheet.properties?.title || "Untitled"
     );
 
     const allSheetData: Record<string, any> = {};
@@ -52,7 +67,7 @@ export async function GET(request: NextRequest) {
       { allData: allSheetData, categories: sheetNames },
       {
         headers: {
-          "Cache-Control": "public, max-age=0, s-maxage=60, stale-while-revalidate=300",
+          "Cache-Control": "public, max-age=0, s-maxage=10, stale-while-revalidate=30",
         },
       },
     );

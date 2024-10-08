@@ -20,24 +20,40 @@ export const HeaderTypography = styled(Typography)<TypographyProps>(({ theme }) 
   }
 }));
 
-interface FooterTextProps {
-  fontSize?: string;
-}
+// interface FooterTextProps {
+//   fontSize?: string;
+// }
 
 export const Footer = styled(Box)(({ theme }) => ({
   display: 'flex',
-  justifyContent: 'space-between', // Ensures left and right sections are spread apart
-  alignItems: 'center',
+  justifyContent: 'space-between', // Distribute content evenly across the row
+  alignItems: 'center', // Align items in the center vertically
   marginTop: theme.spacing(4),
   marginBottom: theme.spacing(2),
-  padding: theme.spacing(2), // Optional: some padding for better spacing
-  gap: theme.spacing(2), // Space between children within each section
-  width: '100%', // Ensures the Footer takes full width
+  padding: theme.spacing(2), // Adds padding for spacing
+  gap: theme.spacing(2), // Adds space between the items
+  width: '100%', // Full width of the container
+  flexWrap: 'wrap', // Allows content to wrap on smaller screens
+  [theme.breakpoints.up('sm')]: {
+    flexWrap: 'nowrap', // Ensures single row on larger screens
+  },
 }));
 
-export const FooterText = styled(Typography)<FooterTextProps>(({ theme, fontSize }) => ({
-  fontSize: fontSize || '1rem',
+export const FooterText = styled(Typography)(({ theme }) => ({
+  fontSize: '1rem',
   fontWeight: 500,
+  color: theme.palette.common.white,
+  [theme.breakpoints.down('sm')]: {
+    fontSize: '0.8rem',
+  },
+}));
+
+export const FooterImage = styled('img')(({ theme }) => ({
+  height: '60px',
+  width: 'auto',
+  [theme.breakpoints.down('sm')]: {
+    height: '40px',
+  },
 }));
 
 export const LastUpdatedTypography = styled(Typography)(({ theme }) => ({
@@ -45,5 +61,8 @@ export const LastUpdatedTypography = styled(Typography)(({ theme }) => ({
   padding: theme.spacing(1),
   borderRadius: theme.shape.borderRadius,
   display: 'inline-block',
-  color: theme.palette.common.black, // Set font color to black
+  color: theme.palette.common.black,
+  [theme.breakpoints.down('sm')]: {
+    fontSize: '0.8rem',
+  },
 }));
