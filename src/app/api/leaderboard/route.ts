@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { CACHE_CONTROL } from "@/app/constants";
 
 const API_KEY = process.env.GOOGLE_SHEETS_API_KEY;
 const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID;
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
         { allData: {}, categories: [] },
         {
           headers: {
-            "Cache-Control": "public, max-age=0, s-maxage=10, stale-while-revalidate=30",
+            "Cache-Control": CACHE_CONTROL,
           },
           status: 200,
         },
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
       { allData: allSheetData, categories: sheetNames },
       {
         headers: {
-          "Cache-Control": "public, max-age=0, s-maxage=10, stale-while-revalidate=30",
+          "Cache-Control": CACHE_CONTROL,
         },
       },
     );

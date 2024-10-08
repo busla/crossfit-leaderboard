@@ -13,7 +13,11 @@ import {
 } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { FooterImage, Footer, FooterText, HeaderTypography, LastUpdatedTypography } from "./styled"
-const REFRESH_INTERVALSECONDS = 15000;
+import { IconWithLabel, headerConfig } from '@/app/icons'; // Adjust the import path as needed
+import { REFRESH_INTERVAL_SECONDS } from '@/app/constants'
+
+
+const REFRESH_INTERVAL_MS = REFRESH_INTERVAL_SECONDS * 1000
 
 interface SheetData {
   headers: string[];
@@ -34,15 +38,6 @@ const formatLastUpdated = (timestamp: string) => {
   });
 };
 
-const headerTranslations: { [key: string]: string } = {
-  "Division": "Undirflokkur",
-  "Athlete": "Keppandi",
-  "Total": "Heildarstig",
-  "Rank": "Sæti",
-  "All": "Allir",
-  "Men": "Karlar",
-  "Women": "Konur",
-};
 
 const LeaderboardClient = ({
   initialData,
@@ -107,7 +102,7 @@ const LeaderboardClient = ({
 
   useEffect(() => {
     refreshData(); // Initial data fetch
-    const intervalId = setInterval(refreshData, REFRESH_INTERVALSECONDS);
+    const intervalId = setInterval(refreshData, REFRESH_INTERVAL_MS);
     return () => clearInterval(intervalId);
   }, [refreshData]);
 
@@ -120,30 +115,42 @@ const LeaderboardClient = ({
     setDivision(newValue);
   }, []);
 
+
   const columns: GridColDef[] = React.useMemo(() => {
     if (category && allData[category]) {
       return [
         {
           field: "rank",
-          headerName: headerTranslations["Rank"] || "Rank",
+          headerName: headerConfig["Rank"].translation,
           width: 70,
-          minWidth: 70,  // Set a minimum width to avoid truncation
+          renderHeader: () => (
+            <IconWithLabel
+              icon={headerConfig["Rank"].icon!}
+              iconProps={{ fontSize: 'small' }}
+            />
+          ),
         },
         ...allData[category].headers.map((header) => {
-          if (header === "Athlete") {
-            return {
-              field: header,
-              headerName: headerTranslations[header] || header,
-              flex: 1, // Allow it to grow and shrink dynamically
-              minWidth: 250, // Larger minimum width for important content
-            };
-          }
-          return {
+          const config = headerConfig[header] || { translation: header, showLabel: true };
+          const baseColumn: GridColDef = {
             field: header,
-            headerName: headerTranslations[header] || header,
-            flex: 1, // Enable flexibility for columns
-            minWidth: 110, // Ensure enough space for content to avoid truncation
+            headerName: config.translation,
+            flex: 1,
+            minWidth: header === "Athlete" ? 250 : 110,
+            renderHeader: () => (
+              config.icon ? (
+                <IconWithLabel
+                  icon={config.icon}
+                  label={config.showLabel ? config.translation : undefined}
+                  iconProps={{ fontSize: 'small' }}
+                />
+              ) : (
+                config.translation
+              )
+            ),
           };
+
+          return baseColumn;
         }),
       ];
     }
@@ -201,24 +208,26 @@ const LeaderboardClient = ({
             ))}
           </Tabs>
         )}
-        {rows.length > 0 ? (
-          <Paper elevation={3}>
-            <DataGrid
-              rows={rows}
-              columns={columns}
-              autoHeight
-              getRowId={(row) => row.id}
-              initialState={{
-                pagination: { paginationModel: { pageSize: 100, page: 0 } },
-                sorting: { sortModel: [{ field: "rank", sort: "asc" }] },
-              }}
-              pageSizeOptions={[10, 25, 50, 100]}
-              disableRowSelectionOnClick
-            />
-          </Paper>
-        ) : (
-          <Alert severity="info">Sæki stigatöflu ...</Alert>
-        )}
+        <Box sx={{ mt: 3 }}>
+          {rows.length > 0 ? (
+            <Paper elevation={3}>
+              <DataGrid
+                rows={rows}
+                columns={columns}
+                autoHeight
+                getRowId={(row) => row.id}
+                initialState={{
+                  pagination: { paginationModel: { pageSize: 100, page: 0 } },
+                  sorting: { sortModel: [{ field: "rank", sort: "asc" }] },
+                }}
+                pageSizeOptions={[10, 25, 50, 100]}
+                disableRowSelectionOnClick
+              />
+            </Paper>
+          ) : (
+            <Alert severity="info">Sæki stigatöflu ...</Alert>
+          )}
+        </Box>
         <Footer>
           <Box display="flex" alignItems="center" gap={2}>
             <FooterText variant="body1">Í boði</FooterText>

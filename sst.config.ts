@@ -1,4 +1,6 @@
 /// <reference path="./.sst/platform/config.d.ts" />
+import { CACHE_CONTROL } from './src/app/constants'
+
 const config = {
   cfr: {
     domain: "islandsmot.cfr.is",
@@ -10,8 +12,8 @@ const config = {
     domain: "cfr.dev.fairgame.is",
     zone: "Z0516150OQ0TIC6MDCUG",
     cert: "arn:aws:acm:us-east-1:285215523486:certificate/75e77351-a4d6-4dd1-a20a-abc52bafaee1",
-    spreadsheetId: '1K6e9xbY_bPDqdmL0kYO484B7PAcpojPDuCNA_fYmvlo'
-    // spreadsheetId: '1wyOAviLuRpI-nWkT8ts5M7iHbYPlpN9EGOeppgT3tjE'
+    // spreadsheetId: '1K6e9xbY_bPDqdmL0kYO484B7PAcpojPDuCNA_fYmvlo'
+    spreadsheetId: '1wyOAviLuRpI-nWkT8ts5M7iHbYPlpN9EGOeppgT3tjE'
   }
 }
 export default $config({
@@ -43,7 +45,7 @@ export default $config({
         }),
       },
       assets: {
-        nonVersionedFilesCacheHeader: "public,max-age=0,s-maxage=10,stale-while-revalidate=30"
+        nonVersionedFilesCacheHeader: CACHE_CONTROL
       }
     });
   },
