@@ -17,6 +17,18 @@ async function fetchWithNoCache(url: string) {
     },
   });
 }
+const pairColumns = (headers: string[]): Record<string, string> => {
+  const pairs: Record<string, string> = {};
+  headers.forEach((header) => {
+    if (header.endsWith('PR')) {
+      const baseHeader = header.slice(0, -2);
+      if (headers.includes(baseHeader)) {
+        pairs[baseHeader] = header;
+      }
+    }
+  });
+  return pairs;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -51,12 +63,33 @@ export async function GET(request: NextRequest) {
 
       if (values.length > 0) {
         const headers = values[0];
+        const columnPairs = pairColumns(headers);
+
         const data = values.slice(1)
-          .filter((row: any[]) => row.every((cell: any) => cell !== ''))
+          .filter((row: any[]) => row.some((cell: any) => cell !== ''))
           .map((row: any[], index: number) => {
             const rowData: Record<string, any> = { id: index + 1 };
+            let previousRank: number | null = null;
+
             headers.forEach((header: string, colIndex: number) => {
-              rowData[header] = row[colIndex];
+              if (columnPairs[header]) {
+                // This is a WOD column with a corresponding PR column
+                const prIndex = headers.indexOf(columnPairs[header]);
+                const currentRank = Number(row[prIndex]) || null;
+
+                rowData[header] = {
+                  value: row[colIndex] || '',
+                  rank: currentRank,
+                  rankChange: previousRank !== null && currentRank !== null
+                    ? previousRank - currentRank
+                    : null
+                };
+
+                previousRank = currentRank;
+              } else if (!header.endsWith('PR')) {
+                // This is a regular column (not a PR column)
+                rowData[header] = row[colIndex] || '';
+              }
             });
             return rowData;
           });

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Container,
   Box,
@@ -9,11 +9,13 @@ import {
   Paper,
   Alert,
   useMediaQuery,
-  useTheme
+  useTheme,
+  Typography
 } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { FooterImage, Footer, FooterText, HeaderTypography, LastUpdatedTypography } from "./styled"
 import { IconWithLabel, headerConfig } from '@/app/icons'; // Adjust the import path as needed
+import { Remove, ArrowUpward, ArrowDownward } from '@mui/icons-material';
 import { REFRESH_INTERVAL_SECONDS } from '@/app/constants'
 
 
@@ -60,7 +62,11 @@ const LeaderboardClient = ({
         : data;
 
       // Sort rows based on the "Total" field, lower scores first
-      filteredRows.sort((a, b) => parseFloat(a["Total"]) - parseFloat(b["Total"]));
+      filteredRows.sort((a, b) => {
+        const totalA = parseFloat(a["Total"]?.value || a["Total"] || '0');
+        const totalB = parseFloat(b["Total"]?.value || b["Total"] || '0');
+        return totalA - totalB;
+      });
 
       // Assign ranks after sorting
       filteredRows = filteredRows.map((row, index) => ({
@@ -116,7 +122,7 @@ const LeaderboardClient = ({
   }, []);
 
 
-  const columns: GridColDef[] = React.useMemo(() => {
+  const columns: GridColDef[] = useMemo(() => {
     if (category && allData[category]) {
       return [
         {
@@ -130,28 +136,57 @@ const LeaderboardClient = ({
             />
           ),
         },
-        ...allData[category].headers.map((header) => {
-          const config = headerConfig[header] || { translation: header, showLabel: true };
-          const baseColumn: GridColDef = {
-            field: header,
-            headerName: config.translation,
-            flex: 1,
-            minWidth: header === "Athlete" ? 250 : 110,
-            renderHeader: () => (
-              config.icon ? (
-                <IconWithLabel
-                  icon={config.icon}
-                  label={config.showLabel ? config.translation : undefined}
-                  iconProps={{ fontSize: 'small' }}
-                />
-              ) : (
-                config.translation
-              )
-            ),
-          };
-
-          return baseColumn;
-        }),
+        ...allData[category].headers
+          .filter(header => !header.endsWith('PR'))
+          .map((header) => {
+            const config = headerConfig[header] || { translation: header, showLabel: true };
+            const baseColumn: GridColDef = {
+              field: header,
+              headerName: config.translation,
+              flex: 1,
+              minWidth: header === "Athlete" ? 250 : 110,
+              renderHeader: () => (
+                config.icon ? (
+                  <IconWithLabel
+                    icon={config.icon}
+                    label={config.showLabel ? config.translation : undefined}
+                    iconProps={{ fontSize: 'small' }}
+                  />
+                ) : (
+                  config.translation
+                )
+              ),
+              renderCell: (params) => {
+                if (params.value && typeof params.value === 'object' && 'value' in params.value) {
+                  const { value, rank, rankChange } = params.value;
+                  return (
+                    <Box display="flex" alignItems="center">
+                      <Typography>{value || '-'}</Typography>
+                      <Box ml={1} display="flex" alignItems="center">
+                        <Typography variant="caption" color="text.secondary">
+                          ({rank})
+                        </Typography>
+                        {params.field !== 'W1A' && rankChange !== null && rankChange !== 0 && (
+                          <>
+                            {rankChange > 0 ? (
+                              <ArrowUpward color="success" fontSize="small" />
+                            ) : (
+                              <ArrowDownward color="error" fontSize="small" />
+                            )}
+                            <Typography variant="caption" color={rankChange > 0 ? "success.main" : "error.main"}>
+                              {Math.abs(rankChange)}
+                            </Typography>
+                          </>
+                        )}
+                      </Box>
+                    </Box>
+                  );
+                }
+                return params.value || '-';
+              },
+            };
+            return baseColumn;
+          }),
       ];
     }
     return [];
