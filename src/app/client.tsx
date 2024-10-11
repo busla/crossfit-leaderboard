@@ -10,16 +10,21 @@ import {
   Alert,
   useMediaQuery,
   useTheme,
-  Typography
+  Typography,
 } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import { FooterImage, Footer, FooterText, HeaderTypography, LastUpdatedTypography } from "./styled"
-import { IconWithLabel, headerConfig } from '@/app/icons'; // Adjust the import path as needed
-import { Remove, ArrowUpward, ArrowDownward } from '@mui/icons-material';
-import { REFRESH_INTERVAL_SECONDS } from '@/app/constants'
+import {
+  FooterImage,
+  Footer,
+  FooterText,
+  HeaderTypography,
+  LastUpdatedTypography,
+} from "./styled";
+import { IconWithLabel, headerConfig } from "@/app/icons";
+import { Remove, ArrowUpward, ArrowDownward } from "@mui/icons-material";
+import { REFRESH_INTERVAL_SECONDS } from "@/app/constants";
 
-
-const REFRESH_INTERVAL_MS = REFRESH_INTERVAL_SECONDS * 1000
+const REFRESH_INTERVAL_MS = REFRESH_INTERVAL_SECONDS * 1000;
 
 interface SheetData {
   headers: string[];
@@ -33,54 +38,36 @@ interface LeaderboardClientProps {
 }
 
 const formatLastUpdated = (timestamp: string) => {
-  return new Date(timestamp).toLocaleString('is-IS', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-    timeZone: 'Atlantic/Reykjavik'
+  return new Date(timestamp).toLocaleString("is-IS", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "Atlantic/Reykjavik",
   });
 };
-
 
 const LeaderboardClient = ({
   initialData,
   initialCategories,
   initialTimestamp,
 }: LeaderboardClientProps) => {
-  const [allData, setAllData] = useState<Record<string, SheetData>>(initialData);
+  const [allData, setAllData] =
+    useState<Record<string, SheetData>>(initialData);
   const [categories, setCategories] = useState<string[]>(initialCategories);
   const [category, setCategory] = useState<string>(initialCategories[0] || "");
   const [division, setDivision] = useState<string>("");
   const [lastUpdated, setLastUpdated] = useState<string>(initialTimestamp);
-  const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const updateRowsData = useCallback(() => {
+  const rows = useMemo(() => {
     if (category && allData[category]) {
       const { data } = allData[category];
-      let filteredRows = division
+      const filteredRows = division
         ? data.filter((row) => row["Division"] === division)
-        : data;
-
-      // Sort rows based on the "Total" field, lower scores first
-      filteredRows.sort((a, b) => {
-        const totalA = parseFloat(a["Total"]?.value || a["Total"] || '0');
-        const totalB = parseFloat(b["Total"]?.value || b["Total"] || '0');
-        return totalA - totalB;
-      });
-
-      // Assign ranks after sorting
-      filteredRows = filteredRows.map((row, index) => ({
-        ...row,
-        rank: index + 1,
-      }));
-
-      setRows(filteredRows);
+        : [...data];
+      return filteredRows.sort((a, b) => a.Rank - b.Rank);
     }
+    return [];
   }, [category, division, allData]);
-
-  useEffect(() => {
-    updateRowsData();
-  }, [updateRowsData]);
 
   const refreshData = useCallback(async () => {
     try {
@@ -92,8 +79,11 @@ const LeaderboardClient = ({
 
       const { allData: newData, categories: newCategories } = await res.json();
 
-      // Ensure data is valid before setting state
-      if (newData && Object.keys(newData).length > 0 && newCategories.length > 0) {
+      if (
+        newData &&
+        Object.keys(newData).length > 0 &&
+        newCategories.length > 0
+      ) {
         setAllData(newData);
         setCategories(newCategories);
         setLastUpdated(new Date().toISOString());
@@ -102,97 +92,130 @@ const LeaderboardClient = ({
       }
     } catch (error) {
       console.error("Error refreshing data: ", error);
-      setError(`Failed to fetch data: ${error instanceof Error ? error.message : String(error)}`);
+      setError(
+        `Failed to fetch data: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
     }
   }, []);
 
   useEffect(() => {
-    refreshData(); // Initial data fetch
+    refreshData();
     const intervalId = setInterval(refreshData, REFRESH_INTERVAL_MS);
     return () => clearInterval(intervalId);
   }, [refreshData]);
 
-  const handleCategoryChange = useCallback((_event: React.SyntheticEvent, newValue: string) => {
-    setCategory(newValue);
-    setDivision("");
-  }, []);
+  const handleCategoryChange = useCallback(
+    (_event: React.SyntheticEvent, newValue: string) => {
+      setCategory(newValue);
+      setDivision("");
+    },
+    [],
+  );
 
-  const handleDivisionChange = useCallback((_event: React.SyntheticEvent, newValue: string) => {
-    setDivision(newValue);
-  }, []);
-
+  const handleDivisionChange = useCallback(
+    (_event: React.SyntheticEvent, newValue: string) => {
+      setDivision(newValue);
+    },
+    [],
+  );
 
   const columns: GridColDef[] = useMemo(() => {
     if (category && allData[category]) {
-      return [
-        {
-          field: "rank",
-          headerName: headerConfig["Rank"].translation,
-          width: 70,
-          renderHeader: () => (
-            <IconWithLabel
-              icon={headerConfig["Rank"].icon!}
-              iconProps={{ fontSize: 'small' }}
-            />
-          ),
-        },
-        ...allData[category].headers
-          .filter(header => !header.endsWith('PR'))
-          .map((header) => {
-            const config = headerConfig[header] || { translation: header, showLabel: true };
-            const baseColumn: GridColDef = {
-              field: header,
-              headerName: config.translation,
-              flex: 1,
-              minWidth: header === "Athlete" ? 250 : 110,
-              renderHeader: () => (
-                config.icon ? (
-                  <IconWithLabel
-                    icon={config.icon}
-                    label={config.showLabel ? config.translation : undefined}
-                    iconProps={{ fontSize: 'small' }}
-                  />
-                ) : (
-                  config.translation
-                )
+      const headers = allData[category].headers;
+      const rankIndex = headers.indexOf("Rank");
+      if (rankIndex > -1) {
+        headers.splice(rankIndex, 1);
+        headers.unshift("Rank");
+      }
+      return headers
+        .filter((header) => !header.includes("Division"))
+        .map((header) => {
+          const config = headerConfig[header] || {
+            translation: header,
+            showLabel: true,
+          };
+          return {
+            field: header,
+            headerName: config.translation,
+            flex: 1,
+            align: "center",
+            headerAlign: "center",
+            minWidth: header === "Athlete" ? 250 : 110,
+            renderHeader: () =>
+              config.icon ? (
+                <IconWithLabel
+                  icon={config.icon}
+                  label={config.showLabel ? config.translation : undefined}
+                  iconProps={{ fontSize: "small" }}
+                />
+              ) : (
+                config.translation
               ),
-              renderCell: (params) => {
-                if (params.value && typeof params.value === 'object' && 'value' in params.value) {
-                  const { value, rank, rankChange } = params.value;
-                  return (
-                    <Box display="flex" alignItems="center">
-                      <Typography>{value || '-'}</Typography>
-                      <Box ml={1} display="flex" alignItems="center">
-                        <Typography variant="caption" color="text.secondary">
-                          ({rank})
-                        </Typography>
-                        {params.field !== 'W1A' && rankChange !== null && rankChange !== 0 && (
-                          <>
-                            {rankChange > 0 ? (
-                              <ArrowUpward color="success" fontSize="small" />
-                            ) : (
-                              <ArrowDownward color="error" fontSize="small" />
-                            )}
-                            <Typography variant="caption" color={rankChange > 0 ? "success.main" : "error.main"}>
-                              {Math.abs(rankChange)}
-                            </Typography>
-                          </>
-                        )}
-                      </Box>
+            renderCell: (params) => {
+              if (
+                params.value &&
+                typeof params.value === "object" &&
+                "value" in params.value
+              ) {
+                const { value, overallRank, rankChange } = params.value;
+                return (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Typography>{value || "-"}</Typography>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        ({overallRank})
+                      </Typography>
+                      {rankChange !== null && (
+                        <>
+                          {rankChange > 0 ? (
+                            <ArrowUpward color="success" fontSize="small" />
+                          ) : rankChange < 0 ? (
+                            <ArrowDownward color="error" fontSize="small" />
+                          ) : (
+                            <Remove color="warning" fontSize="small" />
+                          )}
+                          <Typography
+                            variant="caption"
+                            color={
+                              rankChange > 0
+                                ? "success.main"
+                                : rankChange < 0
+                                  ? "error.main"
+                                  : "warning.main"
+                            }
+                          >
+                            {rankChange !== 0 ? Math.abs(rankChange) : ""}
+                          </Typography>
+                        </>
+                      )}
                     </Box>
-                  );
-                }
-                return params.value || '-';
-              },
-            };
-            return baseColumn;
-          }),
-      ];
+                  </Box>
+                );
+              }
+              return <Typography>{params.value || "-"}</Typography>;
+            },
+          };
+        });
     }
     return [];
   }, [category, allData]);
 
-  const uniqueDivisions = React.useMemo(() => {
+  const uniqueDivisions = useMemo(() => {
     if (category && allData[category]) {
       const divisions = allData[category].data.map((row) => row["Division"]);
       return Array.from(new Set(divisions));
@@ -201,7 +224,8 @@ const LeaderboardClient = ({
   }, [category, allData]);
 
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // Detect mobile screen size
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   return (
     <Container maxWidth="lg">
       <Box sx={{ my: 4 }}>
@@ -210,7 +234,7 @@ const LeaderboardClient = ({
         </HeaderTypography>
 
         <Box display="flex" justifyContent="center" width="100%" mb={2}>
-          <LastUpdatedTypography >
+          <LastUpdatedTypography>
             Síðast uppfært: {formatLastUpdated(lastUpdated)}
           </LastUpdatedTypography>
         </Box>
@@ -222,8 +246,8 @@ const LeaderboardClient = ({
         <Tabs
           value={category}
           onChange={handleCategoryChange}
-          centered={!isMobile} // Centered only on desktop
-          variant={isMobile ? "scrollable" : "standard"} // Scrollable on mobile, standard on desktop
+          centered={!isMobile}
+          variant={isMobile ? "scrollable" : "standard"}
         >
           {categories.map((cat) => (
             <Tab key={cat} label={cat} value={cat} />
@@ -234,8 +258,8 @@ const LeaderboardClient = ({
           <Tabs
             value={division}
             onChange={handleDivisionChange}
-            centered={true} // Centered only on desktop
-            variant={"standard"} // Scrollable on mobile, standard on desktop
+            centered={true}
+            variant={"standard"}
           >
             <Tab key="all" label="Allir" value="" />
             {uniqueDivisions.map((div) => (
@@ -253,7 +277,6 @@ const LeaderboardClient = ({
                 getRowId={(row) => row.id}
                 initialState={{
                   pagination: { paginationModel: { pageSize: 100, page: 0 } },
-                  sorting: { sortModel: [{ field: "rank", sort: "asc" }] },
                 }}
                 pageSizeOptions={[10, 25, 50, 100]}
                 disableRowSelectionOnClick
@@ -266,7 +289,11 @@ const LeaderboardClient = ({
         <Footer>
           <Box display="flex" alignItems="center" gap={2}>
             <FooterText variant="body1">Í boði</FooterText>
-            <a href="https://crossfitreykjavik.is" target="_blank" rel="noopener noreferrer">
+            <a
+              href="https://crossfitreykjavik.is"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <FooterImage
                 src="/images/cfr420.png"
                 alt="Crossfit Reykjavik Logo"
@@ -276,7 +303,11 @@ const LeaderboardClient = ({
 
           <Box display="flex" alignItems="center" gap={2}>
             <FooterText variant="body1">Með aðstoð</FooterText>
-            <a href="https://fairgame.is" target="_blank" rel="noopener noreferrer">
+            <a
+              href="https://fairgame.is"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <FooterImage
                 src="/images/fairgame.svg"
                 alt="FairGame Sports Logo"
@@ -285,8 +316,8 @@ const LeaderboardClient = ({
           </Box>
         </Footer>
       </Box>
-    </Container >
+    </Container>
   );
-}
+};
 
 export default LeaderboardClient;
