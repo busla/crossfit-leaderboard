@@ -5,15 +5,28 @@ export interface EventData {
   positionChange: number;
 }
 
-export interface Player {
-  id: number;
-  name: string;
-  gender: string;
-  total: number;
-  events: EventData[];
+interface WorkoutResult {
+  value: string;
+  overallRank: number | null;
+  rankChange: number | null;
 }
 
-export interface SheetData {
-  headers: string[];
-  data: Player[];
+interface Sheet {
+  properties: SheetProperties;
+}
+
+interface SheetProperties {
+  title: string;
+}
+
+export interface SheetsSchema {
+  sheets: Sheet[];
+}
+
+export interface AthleteResult {
+  id: number;
+  Division: string;
+  Athlete: string;
+  Rank: number;
+  [key: string]: any; // To handle additional columns like W1A, W1B, W2, etc.
 }

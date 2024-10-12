@@ -32,8 +32,7 @@ interface SheetData {
 }
 
 interface LeaderboardClientProps {
-  initialData: Record<string, SheetData>;
-  initialCategories: string[];
+  initialData: Record<string, Record<string, any[]>>;
   initialTimestamp: string;
 }
 
@@ -47,24 +46,24 @@ const formatLastUpdated = (timestamp: string) => {
 
 const LeaderboardClient = ({
   initialData,
-  initialCategories,
   initialTimestamp,
 }: LeaderboardClientProps) => {
   const [allData, setAllData] =
-    useState<Record<string, SheetData>>(initialData);
-  const [categories, setCategories] = useState<string[]>(initialCategories);
-  const [category, setCategory] = useState<string>(initialCategories[0] || "");
+    useState<Record<string, Record<string, any[]>>>(initialData);
+  const [category, setCategory] = useState<string>(
+    Object.keys(initialData)[0] || "",
+  );
   const [division, setDivision] = useState<string>("");
   const [lastUpdated, setLastUpdated] = useState<string>(initialTimestamp);
   const [error, setError] = useState<string | null>(null);
 
   const rows = useMemo(() => {
     if (category && allData[category]) {
-      const { data } = allData[category];
-      const filteredRows = division
-        ? data.filter((row) => row["Division"] === division)
-        : [...data];
-      return filteredRows.sort((a, b) => a.Rank - b.Rank);
+      const divisionData =
+        division && division !== "Allir"
+          ? allData[category][division]
+          : Object.values(allData[category]).flat();
+      return divisionData.sort((a, b) => a.Rank - b.Rank);
     }
     return [];
   }, [category, division, allData]);
@@ -77,15 +76,10 @@ const LeaderboardClient = ({
         throw new Error(`HTTP error! status: ${res.status}`);
       }
 
-      const { allData: newData, categories: newCategories } = await res.json();
+      const { allData: newData } = await res.json();
 
-      if (
-        newData &&
-        Object.keys(newData).length > 0 &&
-        newCategories.length > 0
-      ) {
+      if (newData && Object.keys(newData).length > 0) {
         setAllData(newData);
-        setCategories(newCategories);
         setLastUpdated(new Date().toISOString());
       } else {
         console.warn("Received empty or invalid data, skipping update.");
@@ -103,7 +97,9 @@ const LeaderboardClient = ({
   useEffect(() => {
     refreshData();
     const intervalId = setInterval(refreshData, REFRESH_INTERVAL_MS);
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [refreshData]);
 
   const handleCategoryChange = useCallback(
@@ -121,104 +117,105 @@ const LeaderboardClient = ({
     [],
   );
 
-  const columns: GridColDef[] = useMemo(() => {
-    if (category && allData[category]) {
-      const headers = allData[category].headers;
-      const rankIndex = headers.indexOf("Rank");
-      if (rankIndex > -1) {
-        headers.splice(rankIndex, 1);
-        headers.unshift("Rank");
-      }
-      return headers
-        .filter((header) => !header.includes("Division"))
-        .map((header) => {
-          const config = headerConfig[header] || {
-            translation: header,
-            showLabel: true,
-          };
-          return {
-            field: header,
-            headerName: config.translation,
-            flex: 1,
-            align: "center",
-            headerAlign: "center",
-            minWidth: header === "Athlete" ? 250 : 110,
-            renderHeader: () =>
-              config.icon ? (
-                <IconWithLabel
-                  icon={config.icon}
-                  label={config.showLabel ? config.translation : undefined}
-                  iconProps={{ fontSize: "small" }}
-                />
-              ) : (
-                config.translation
-              ),
-            renderCell: (params) => {
-              if (
-                params.value &&
-                typeof params.value === "object" &&
-                "value" in params.value
-              ) {
-                const { value, overallRank, rankChange } = params.value;
-                return (
+  const getColumns = useCallback((headers: string[]): GridColDef[] => {
+    const uniqueHeaders = Array.from(new Set(headers));
+    return uniqueHeaders
+      .filter((header) => header !== "id" && !header.includes("Division"))
+      .map((header) => {
+        const config = headerConfig[header] || {
+          translation: header,
+          showLabel: true,
+        };
+        return {
+          field: header,
+          headerName: config.translation,
+          flex: 1,
+          align: "center" as const,
+          headerAlign: "center" as const,
+          minWidth: header === "Athlete" ? 250 : 110,
+          renderHeader: () =>
+            config.icon ? (
+              <IconWithLabel
+                icon={config.icon}
+                label={config.showLabel ? config.translation : undefined}
+                iconProps={{ fontSize: "small" }}
+              />
+            ) : (
+              config.translation
+            ),
+          renderCell: (params: any) => {
+            if (
+              params.value &&
+              typeof params.value === "object" &&
+              "value" in params.value
+            ) {
+              const { value, overallRank, rankChange } = params.value;
+              return (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    justifyContent: "center",
+                  }}
+                >
+                  <Typography>{value || "-"}</Typography>
                   <Box
                     sx={{
                       display: "flex",
                       alignItems: "center",
-                      gap: 1,
                       justifyContent: "center",
                     }}
                   >
-                    <Typography>{value || "-"}</Typography>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Typography variant="caption" color="text.secondary">
-                        ({overallRank})
-                      </Typography>
-                      {rankChange !== null && (
-                        <>
-                          {rankChange > 0 ? (
-                            <ArrowUpward color="success" fontSize="small" />
-                          ) : rankChange < 0 ? (
-                            <ArrowDownward color="error" fontSize="small" />
-                          ) : (
-                            <Remove color="warning" fontSize="small" />
-                          )}
-                          <Typography
-                            variant="caption"
-                            color={
-                              rankChange > 0
-                                ? "success.main"
-                                : rankChange < 0
-                                  ? "error.main"
-                                  : "warning.main"
-                            }
-                          >
-                            {rankChange !== 0 ? Math.abs(rankChange) : ""}
-                          </Typography>
-                        </>
-                      )}
-                    </Box>
+                    <Typography variant="caption" color="text.secondary">
+                      ({overallRank})
+                    </Typography>
+                    {rankChange !== null && (
+                      <>
+                        {rankChange > 0 ? (
+                          <ArrowUpward color="success" fontSize="small" />
+                        ) : rankChange < 0 ? (
+                          <ArrowDownward color="error" fontSize="small" />
+                        ) : (
+                          <Remove color="warning" fontSize="small" />
+                        )}
+                        <Typography
+                          variant="caption"
+                          color={
+                            rankChange > 0
+                              ? "success.main"
+                              : rankChange < 0
+                                ? "error.main"
+                                : "warning.main"
+                          }
+                        >
+                          {rankChange !== 0 ? Math.abs(rankChange) : ""}
+                        </Typography>
+                      </>
+                    )}
                   </Box>
-                );
-              }
-              return <Typography>{params.value || "-"}</Typography>;
-            },
-          };
-        });
+                </Box>
+              );
+            }
+            return <Typography>{params.value || "-"}</Typography>;
+          },
+        };
+      });
+  }, []);
+
+  const columns: GridColDef[] = useMemo(() => {
+    if (category && allData[category]) {
+      const headers = Object.keys(
+        allData[category][Object.keys(allData[category])[0]]?.[0] || {},
+      );
+      return getColumns(headers);
     }
     return [];
-  }, [category, allData]);
+  }, [category, allData, getColumns]);
 
   const uniqueDivisions = useMemo(() => {
     if (category && allData[category]) {
-      const divisions = allData[category].data.map((row) => row["Division"]);
-      return Array.from(new Set(divisions));
+      return Object.keys(allData[category]);
     }
     return [];
   }, [category, allData]);
@@ -249,7 +246,7 @@ const LeaderboardClient = ({
           centered={!isMobile}
           variant={isMobile ? "scrollable" : "standard"}
         >
-          {categories.map((cat) => (
+          {Object.keys(allData).map((cat) => (
             <Tab key={cat} label={cat} value={cat} />
           ))}
         </Tabs>
@@ -263,7 +260,7 @@ const LeaderboardClient = ({
           >
             <Tab key="all" label="Allir" value="" />
             {uniqueDivisions.map((div) => (
-              <Tab key={div} label={div} value={div} />
+              <Tab key={`${category}-${div}`} label={div} value={div} />
             ))}
           </Tabs>
         )}

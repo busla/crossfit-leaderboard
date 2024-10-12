@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CACHE_CONTROL } from "@/app/constants";
+import { AthleteResult } from "@/app/types";
 
 const API_KEY = process.env.GOOGLE_SHEETS_API_KEY;
 const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID;
@@ -48,8 +49,13 @@ const processRowData = (
   row: any[],
   columnPairs: Record<string, string>,
   index: number,
-) => {
-  const rowData: Record<string, any> = { id: index + 1 };
+): AthleteResult => {
+  const rowData: AthleteResult = {
+    Rank: 0,
+    id: index + 1,
+    Division: "",
+    Athlete: "",
+  };
   const previousOverallRank = { value: null as number | null };
 
   headers.forEach((header, colIndex) => {
@@ -75,10 +81,19 @@ const processRowData = (
 
 const processSheetData = (headers: string[], values: any[][]) => {
   const columnPairs = pairColumns(headers);
-  return values
+  const processedData = values
     .slice(1)
     .filter((row) => row.some((cell) => cell !== ""))
     .map((row, index) => processRowData(headers, row, columnPairs, index));
+
+  return processedData.reduce((acc: Record<string, any>, row) => {
+    const division = row["Division"];
+    if (!acc[division]) {
+      acc[division] = [];
+    }
+    acc[division].push(row);
+    return acc;
+  }, {});
 };
 
 export const GET = async (request: NextRequest) => {
@@ -107,33 +122,34 @@ export const GET = async (request: NextRequest) => {
       (sheet: any) => sheet.properties?.title || "Untitled",
     );
 
-    const allSheetData: Record<string, any> = {};
     const fetchPromises = sheetNames.map(async (sheetName: string) => {
       const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${sheetName}!A1:Z1000?key=${API_KEY}`;
       try {
         const dataJson = await fetchWithNoCache(dataUrl);
-        const values = dataJson.values || [];
+        const values: string[][] = dataJson.values || [];
 
         if (values.length > 0) {
-          const headers = values[0];
+          const headers: string[] = values[0]; // First row is headers
           const data = processSheetData(headers, values);
-          allSheetData[sheetName] = {
-            headers: headers.filter(
-              (header: string) =>
-                !header.endsWith(RANK_SUFFIX) && !header.endsWith(AVG_SUFFIX),
-            ),
-            data,
+
+          return {
+            [sheetName]: data,
           };
         }
       } catch (error) {
         console.error(`Error fetching data for sheet: ${sheetName}`, error);
       }
+      return {}; // Return an empty object for failed fetches or empty data
     });
 
-    await Promise.all(fetchPromises);
+    const allSheetData = Object.assign(
+      {},
+      ...(await Promise.all(fetchPromises)),
+    );
+    console.log(JSON.stringify(allSheetData, null, 2));
 
     return NextResponse.json(
-      { allData: allSheetData, categories: sheetNames },
+      { allData: allSheetData },
       {
         headers: {
           "Cache-Control": CACHE_CONTROL,
