@@ -86,6 +86,7 @@ const processSheetData = (headers: string[], values: any[][]) => {
     .filter((row) => row.some((cell) => cell !== ""))
     .map((row, index) => processRowData(headers, row, columnPairs, index));
 
+  // Reduce processed rows into a structured object by division
   return processedData.reduce((acc: Record<string, any>, row) => {
     const division = row["Division"];
     if (!acc[division]) {
@@ -96,7 +97,7 @@ const processSheetData = (headers: string[], values: any[][]) => {
   }, {});
 };
 
-export const GET = async (request: NextRequest) => {
+export const GET = async (_: NextRequest) => {
   try {
     if (!API_KEY || !SPREADSHEET_ID) {
       throw new Error("Missing API key or Spreadsheet ID");
@@ -146,7 +147,6 @@ export const GET = async (request: NextRequest) => {
       {},
       ...(await Promise.all(fetchPromises)),
     );
-    console.log(JSON.stringify(allSheetData, null, 2));
 
     return NextResponse.json(
       { allData: allSheetData },

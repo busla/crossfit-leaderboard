@@ -5,7 +5,7 @@ export interface EventData {
   positionChange: number;
 }
 
-interface WorkoutResult {
+export interface WorkoutResult {
   value: string;
   overallRank: number | null;
   rankChange: number | null;

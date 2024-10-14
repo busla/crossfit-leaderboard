@@ -61,8 +61,10 @@ const LeaderboardClient = ({
     if (category && allData[category]) {
       const divisionData =
         division && division !== "Allir"
-          ? allData[category][division]
-          : Object.values(allData[category]).flat();
+          ? [...allData[category][division]]
+          : Object.values(allData[category])
+              .flat()
+              .map((item) => ({ ...item }));
       return divisionData.sort((a, b) => a.Rank - b.Rank);
     }
     return [];

@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import LeaderboardClient from "./client";
 
-async function getData() {
+const getData = async () => {
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/leaderboard`,
     { cache: "no-store" },
@@ -11,16 +11,17 @@ async function getData() {
     throw new Error("Failed to fetch data");
   }
   return res.json();
-}
+};
 
-export default async function LeaderboardPage() {
-  const { allData, categories } = await getData();
+const LeaderboardPage = async () => {
+  const { allData } = await getData();
 
   return (
     <LeaderboardClient
       initialData={allData}
-      initialCategories={categories}
       initialTimestamp={new Date().toISOString()}
     />
   );
-}
+};
+
+export default LeaderboardPage;
